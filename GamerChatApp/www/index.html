@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamer Chat App 🎮</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .chat-container {
+            background-color: #1e1e1e;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 450px;
+        }
+        h2 { text-align: center; color: #00c853; margin-top: 0; font-size: 24px; }
+        
+        /* تصميم صندوق الشات */
+        .chat-box {
+            height: 300px;
+            overflow-y: auto;
+            background-color: #151515;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message-card {
+            background-color: #222;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-right: 4px solid #00c853;
+            animation: fadeIn 0.3s ease;
+        }
+        .msg-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .username { font-weight: bold; color: #00c853; }
+        .game-badge { font-size: 11px; background-color: #333; padding: 2px 6px; border-radius: 4px; color: #aaa; }
+        .msg-text { color: #fff; word-break: break-word; }
+
+        label { display: block; margin: 10px 0 5px; color: #aaa; font-size: 14px; }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background-color: #252525;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #00c853;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #00b248; }
+        #status { text-align: center; margin-top: 10px; font-size: 13px; font-weight: bold; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <h2>🎮 شات الجيمرز المشترك</h2>
+    
+    <div class="chat-box" id="chatBox">
+        <p style="color: #666; text-align: center; margin: auto;">جاري سحب الرسائل من السيرفر...</p>
+    </div>
+    
+    <label>اسم المستخدم:</label>
+    <input type="text" id="username" placeholder="اكتب اسمك الحقيقي...">
+
+    <label>اللعبة المفضلة حالياً:</label>
+    <select id="game_name">
+        <option value="Rocket League">Rocket League</option>
+        <option value="Fortnite">Fortnite</option>
+        <option value="Roblox">Roblox</option>
+    </select>
+
+    <label>الرسالة:</label>
+    <input type="text" id="message_text" placeholder="اكتب رسالة لأصحابك...">
+
+    <button onclick="sendToSupabase()">إرسال الرسالة السحابية 🚀</button>
+
+    <div id="status"></div>
+</div>
+
+<script>
+const url = "https://bulrfueujtucvgliaejp.supabase.co/rest/v1/messages";
+const headers = {
+    "apikey": "sb_publishable_Try0GuODd4u1KMi6vQOWDQ_fBXY6EEL",
+    "Authorization": "Bearer sb_publishable_Try0GuODd4u1KMi6vQOWDQ_fBXY6EEL",
+    "Content-Type": "application/json"
+};
+
+// 1. دالة لجلب واستعراض الرسائل من السيرفر
+async function fetchMessages() {
+    try {
+        // بنجيب الرسائل مرتبة من الأقدم للأحدث بناءً على وقت الإنشاء (created_at)
+        const response = await fetch(`${url}?order=created_at.asc`, {
+            method: "GET",
+            headers: headers
+        });
+
+        if (response.ok) {
+            const messages = await response.json();
+            const chatBox = document.getElementById('chatBox');
+            
+            if (messages.length === 0) {
+                chatBox.innerHTML = "<p style='color: #666; text-align: center; margin: auto;'>لا توجد رسائل بعد. كن أول من يرسل!</p>";
+                return;
+            }
+
+            // تخزين مكان السكرول الحالي عشان لو المستخدم طالع فوق يقرا ميتعملوش إزعاج
+            const isScrolledToBottom = chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 50;
+
+            chatBox.innerHTML = ""; // مسح الصندوق لإعادة البناء بالجديد
+            messages.forEach(msg => {
+                const card = document.createElement('div');
+                card.className = 'message-card';
+                card.innerHTML = `
+                    <div class="msg-header">
+                        <span class="username">${msg.username || 'مجهول'}</span>
+                        <span class="game-badge">${msg.game_name || 'عام'}</span>
+                    </div>
+                    <div class="msg-text">${msg.message_text}</div>
+                `;
+                chatBox.appendChild(card);
+            });
+
+            // لو كان السكرول تحت خالص، انزل تلقائياً مع الرسائل الجديدة
+            if (isScrolledToBottom) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+    } catch (error) {
+        console.error("خطأ أثناء تحديث الشات:", error);
+    }
+}
+
+// 2. دالة إرسال رسالة جديدة
+async function sendToSupabase() {
+    const user = document.getElementById('username').value.trim();
+    const game = document.getElementById('game_name').value;
+    const text = document.getElementById('message_text').value.trim();
+    const statusDiv = document.getElementById('status');
+
+    if(!user || !text) {
+        statusDiv.style.color = "#ff4444";
+        statusDiv.innerText = "❌ اكتب اسمك ورسالتك الأول!";
+        return;
+    }
+
+    statusDiv.style.color = "yellow";
+    statusDiv.innerText = "جاري إرسال رسالتك الحالية...";
+
+    const data = { username: user, message_text: text, game_name: game };
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            statusDiv.style.color = "#00c853";
+            statusDiv.innerText = "🚀 تم الإرسال في ثانية!";
+            document.getElementById('message_text').value = ""; // مسح صندوق الكتابة
+            fetchMessages(); // تحديث فوري للشات عشان تشوف رسالتك نزلت
+        } else {
+            statusDiv.style.color = "#ff4444";
+            statusDiv.innerText = "❌ السيرفر رفض الاستلام! كود: " + response.status;
+        }
+    } catch (error) {
+        statusDiv.style.color = "#ff4444";
+        statusDiv.innerText = "❌ حدث خطأ في الاتصال بالسيرفر!";
+    }
+}
+
+// 3. تشغيل الشات تلقائياً عند فتح الصفحة وتحديثه كل 4 ثوانٍ
+window.onload = () => {
+    fetchMessages(); 
+    setInterval(fetchMessages, 4000); 
+};
+</script>
+
+</body>
+</html>
