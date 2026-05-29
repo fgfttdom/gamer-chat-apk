@@ -1,0 +1,13 @@
+{
+  "name": "com.omar.gamerchat",
+  "version": "1.0.0",
+  "displayName": "Gamer Chat",
+  "cordova": {
+    "platforms": [
+      "android"
+    ]
+  },
+  "dependencies": {
+    "cordova-android": "^12.0.0"
+  }
+}
